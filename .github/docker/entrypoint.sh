@@ -5,6 +5,8 @@ mkdir -p /var/log/panel/logs/ /var/log/supervisord/ /var/log/nginx/ /var/log/php
   && chmod 777 /var/log/panel/logs/ \
   && ln -s /var/log/panel/logs/ /app/storage/logs/
 
+mkdir -p /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')
+
 ## check for .env file and generate app keys if missing
 if [ -f /app/var/.env ]; then
   echo "external vars exist."
@@ -34,7 +36,15 @@ if [ -f /etc/nginx/http.d/panel.conf ]; then
   echo "Using nginx config already in place."
   if [ $LE_EMAIL ]; then
     echo "Checking for cert update"
-    certbot certonly -d $(echo $APP_URL | sed 's~http[s]*://~~g')  --standalone -m $LE_EMAIL --agree-tos -n
+    if [ $CF_EMAIL ] && [ $CF_API_KEY ]; then
+      CF_Email="$CF_EMAIL" \
+      CF_Key="$CF_API_KEY" \
+      acme.sh --renew --dns dns_cf --server letsencrypt --domain $(echo $APP_URL | sed 's~http[s]*://~~g')  -m $LE_EMAIL --dnssleep 10 \
+              --fullchain-file /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')/fullchain.pem \
+              --key-file /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')/privkey.pem
+    else
+      certbot certonly -d $(echo $APP_URL | sed 's~http[s]*://~~g')  --standalone -m $LE_EMAIL --agree-tos -n
+    fi
   else
     echo "No letsencrypt email is set"
   fi
@@ -49,7 +59,15 @@ else
     echo "updating ssl config for domain"
     sed -i "s|<domain>|$(echo $APP_URL | sed 's~http[s]*://~~g')|g" /etc/nginx/http.d/panel.conf
     echo "generating certs"
-    certbot certonly -d $(echo $APP_URL | sed 's~http[s]*://~~g')  --standalone -m $LE_EMAIL --agree-tos -n
+    if [ $CF_EMAIL ] && [ $CF_API_KEY ]; then
+      CF_Email="$CF_EMAIL" \
+      CF_Key="$CF_API_KEY" \
+      acme.sh --issue --dns dns_cf --server letsencrypt --domain $(echo $APP_URL | sed 's~http[s]*://~~g')  -m $LE_EMAIL --dnssleep 10 \
+              --fullchain-file /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')/fullchain.pem \
+              --key-file /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')/privkey.pem
+    else
+      certbot certonly -d $(echo $APP_URL | sed 's~http[s]*://~~g')  --standalone -m $LE_EMAIL --agree-tos -n
+    fi
   fi
   echo "Removing the default nginx config"
   rm -rf /etc/nginx/http.d/default.conf
