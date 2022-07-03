@@ -39,7 +39,7 @@ if [ -f /etc/nginx/http.d/panel.conf ]; then
     if [ $CF_EMAIL ] && [ $CF_API_KEY ]; then
       CF_Email="$CF_EMAIL" \
       CF_Key="$CF_API_KEY" \
-      acme.sh --renew --dns dns_cf --server letsencrypt --domain $(echo $APP_URL | sed 's~http[s]*://~~g')  -m $LE_EMAIL --dnssleep 10 \
+      acme.sh --issue --dns dns_cf --server letsencrypt --domain $(echo $APP_URL | sed 's~http[s]*://~~g')  -m $LE_EMAIL --dnssleep 10 \
               --fullchain-file /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')/fullchain.pem \
               --key-file /etc/letsencrypt/live/$(echo $APP_URL | sed 's~http[s]*://~~g')/privkey.pem
     else
